@@ -1,0 +1,420 @@
+[gd_scene load_steps=14 format=2]
+
+[ext_resource path="res://sprites/playerSpritesheet.png" type="Texture2D" id=1]
+
+[sub_resource type="GDScript" id=12]
+script/source = "extends CharacterBody2D
+
+
+const UP = Vector2(0,-1)
+const GRAVITY = 18
+const MAXFALLSPEED = 300
+const MAXSPEED =  150#300 #100
+const JUMPFORCE = 350 #450 #350
+const ACCEL =  15 #30 #15
+
+var motion = Vector2()
+var facing_right = true
+var max_jumps = 2
+var jump_count = 0
+# is true if player is dead
+var hasJustDied = true
+var instaDeath = false
+#for controlling dash
+var dashing = false
+var canDash = true
+var dashDir = Vector2()
+#to ensure falling animation only played once
+var justFallen = true
+
+func _ready():
+	pass
+
+ 
+	#instant death
+	if PlayerVars.health == -1:
+		instaDeath = true
+	elif PlayerVars.health < 1:
+		death()
+	
+	#gravity only if not dashing
+	if !dashing:
+		motion.y += GRAVITY
+		if motion.y > MAXFALLSPEED:
+			motion.y = MAXFALLSPEED
+	
+	if facing_right:
+		$Sprite2D.flip_h = false
+	else:
+		$Sprite2D.flip_h = true
+	# limits motion btwn two numbers
+	motion.x = clamp(motion.x, -MAXSPEED, MAXSPEED)
+	
+	if PlayerVars.respawn == true:
+		#ensures death animation only plays once
+		if hasJustDied:		
+			if instaDeath:		
+				#player \"disappears\"
+				$AnimationPlayer.play(\"blank\")
+			else:
+				$AnimationPlayer.play(\"death\")
+			hasJustDied = false
+		if motion.x != 0:
+			motion.x = lerp(motion.x, 0, 0.2)
+		if Input.is_action_pressed('ui_accept'):
+			if instaDeath:
+				death()
+				instaDeath = false
+			$AnimationPlayer.play(\"revive\")
+				
+			
+	elif !dashing:
+		
+		if Input.is_action_pressed(\"right\"):
+			motion.x += ACCEL
+			facing_right = true
+			#animation only plays if player is not jumping
+			is_on_floor() and $AnimationPlayer.play(\"walk\")
+			if Input.is_action_pressed(\"sprint\"):
+				motion.x += ACCEL*2
+		elif Input.is_action_pressed(\"left\"):
+			motion.x -= ACCEL
+			facing_right = false
+			#anim only plays if player is not jumping
+			is_on_floor() and $AnimationPlayer.play(\"walk\")
+			if Input.is_action_pressed(\"sprint\"):
+				motion.x -= ACCEL*2
+		else:
+			# slows gradually
+			motion.x = lerp(motion.x, 0, 0.2)
+			#anim only plays if player is not jumping
+			#is_on_floor() and $AnimationPlayer.play(\"idle\") -- idle anim TBA
+		if is_on_floor():
+			jump_count = 0
+			justFallen = true
+			
+		if Input.is_action_just_pressed(\"jump\"):
+			if is_on_floor():
+				motion.y = - JUMPFORCE
+			elif jump_count < max_jumps:
+				motion.y = -JUMPFORCE  / 1.2
+			jump_count += 1
+		if 	Input.is_action_just_released(\"jump\"):
+			motion.y /= 2
+			
+		if !is_on_floor():
+			if motion.y < 0:
+				$AnimationPlayer.play(\"jump\")
+			elif $FloorChecker.is_colliding():
+				$AnimationPlayer.play(\"splat\")
+			elif motion.y > 0:
+				if justFallen:
+					$AnimationPlayer.play(\"fall\")
+					justFallen = false
+			
+		if Input.is_action_just_pressed(\"dash\"):
+			pass
+		
+		dash()
+	#no movement and not splatting (wait until fall effect over)
+	if motion.y == GRAVITY and round(motion.x) == 0 and $AnimationPlayer.current_animation != \"splat\" and PlayerVars.respawn == false:
+		$AnimationPlayer.play(\"idle\")
+	else:
+		if $PointLight2D.get_color() != Color(1,1,1,1):
+			$PointLight2D.set_color(Color(1,1,1,1))
+	set_velocity(motion)
+	set_up_direction(UP)
+	move_and_slide()
+	motion = velocity
+	
+	
+func dash():
+	if Input.is_action_just_pressed(\"dash\") and canDash:
+		$AnimationPlayer.play(\"dash\")
+		if facing_right:
+			dashDir = Vector2(1,0)
+		else:
+			dashDir = Vector2(-1,0)
+		#dash speed
+		motion = dashDir.normalized() * 1000
+		canDash = false
+		dashing = true
+		#dash cooldown
+		await get_tree().create_timer(0.2).timeout
+		dashing = false
+		await get_tree().create_timer(0.2).timeout
+		canDash = true
+		
+	
+# camera changes for debug
+func _input(event):
+	if event.is_action_pressed('scroll-up'):
+		$Camera2D.zoom = $Camera2D.zoom - Vector2(0.1, 0.1)
+	if event.is_action_pressed('scroll-down'):
+		$Camera2D.zoom = $Camera2D.zoom + Vector2(0.2, 0.2)
+
+func respawn():
+	hasJustDied = true
+	PlayerVars.respawn = false
+
+
+func death():
+	#updates berry quantity
+	PlayerVars.totalBerries += PlayerVars.berries
+	get_tree().change_scene_to_file(PlayerVars.spawn)
+	queue_free()
+	PlayerVars.resetStats()
+"
+
+[sub_resource type="Animation" id=2]
+length = 0.001
+tracks/0/type = "value"
+tracks/0/path = NodePath("../Sprite2D:frame")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/keys = {
+"times": PackedFloat32Array( 0 ),
+"transitions": PackedFloat32Array( 1 ),
+"update": 0,
+"values": [ 4 ]
+}
+
+[sub_resource type="Animation" id=10]
+resource_name = "blank"
+loop = true
+tracks/0/type = "value"
+tracks/0/path = NodePath("../Sprite2D:frame")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/keys = {
+"times": PackedFloat32Array( 0.1, 0.2 ),
+"transitions": PackedFloat32Array( 1, 1 ),
+"update": 1,
+"values": [ 39, 40 ]
+}
+
+[sub_resource type="Animation" id=11]
+resource_name = "dash"
+length = 0.5
+step = 0.05
+tracks/0/type = "value"
+tracks/0/path = NodePath("../Sprite2D:frame")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/keys = {
+"times": PackedFloat32Array( 0, 0.1, 0.2, 0.3, 0.4, 0.45, 0.5 ),
+"transitions": PackedFloat32Array( 1, 1, 1, 1, 1, 1, 1 ),
+"update": 1,
+"values": [ 35, 36, 37, 36, 37, 35, 0 ]
+}
+
+[sub_resource type="Animation" id=8]
+resource_name = "death"
+tracks/0/type = "value"
+tracks/0/path = NodePath("../Sprite2D:frame")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/keys = {
+"times": PackedFloat32Array( 0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7 ),
+"transitions": PackedFloat32Array( 1, 1, 1, 1, 1, 1, 1, 1 ),
+"update": 1,
+"values": [ 17, 18, 19, 20, 21, 22, 23, 24 ]
+}
+
+[sub_resource type="Animation" id=6]
+resource_name = "fall"
+length = 0.1
+step = 0.05
+tracks/0/type = "value"
+tracks/0/path = NodePath("../Sprite2D:frame")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/keys = {
+"times": PackedFloat32Array( 0, 0.1 ),
+"transitions": PackedFloat32Array( 1, 1 ),
+"update": 1,
+"values": [ 15, 0 ]
+}
+
+[sub_resource type="Animation" id=3]
+resource_name = "idle"
+length = 10.0
+tracks/0/type = "value"
+tracks/0/path = NodePath("../Sprite2D:frame")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/keys = {
+"times": PackedFloat32Array( 0, 1.7, 2.3, 4.1, 4.9, 6.1, 6.8, 9.9 ),
+"transitions": PackedFloat32Array( 1, 1, 1, 1, 1, 1, 1, 1 ),
+"update": 1,
+"values": [ 5, 5, 6, 5, 6, 5, 6, 5 ]
+}
+tracks/1/type = "value"
+tracks/1/path = NodePath("../CollisionShape2D:position")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/imported = false
+tracks/1/enabled = false
+tracks/1/keys = {
+"times": PackedFloat32Array( 0 ),
+"transitions": PackedFloat32Array( 1 ),
+"update": 0,
+"values": [ Vector2( 0, 3.5 ) ]
+}
+tracks/2/type = "value"
+tracks/2/path = NodePath("../PointLight2D:color")
+tracks/2/interp = 1
+tracks/2/loop_wrap = true
+tracks/2/imported = false
+tracks/2/enabled = true
+tracks/2/keys = {
+"times": PackedFloat32Array( 1.7, 2.4, 4, 4.3, 5.1, 5.9, 6.2, 7.3, 9.7, 10 ),
+"transitions": PackedFloat32Array( 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ),
+"update": 0,
+"values": [ Color( 1, 1, 1, 0.498039 ), Color( 1, 1, 1, 0 ), Color( 1, 1, 1, 0 ), Color( 1, 1, 1, 0.498039 ), Color( 1, 1, 1, 0 ), Color( 1, 1, 1, 0 ), Color( 1, 1, 1, 0.498039 ), Color( 1, 1, 1, 0 ), Color( 1, 1, 1, 0 ), Color( 1, 1, 1, 0.498039 ) ]
+}
+
+[sub_resource type="Animation" id=5]
+resource_name = "jump"
+length = 0.6
+step = 0.05
+tracks/0/type = "value"
+tracks/0/path = NodePath("../Sprite2D:frame")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/keys = {
+"times": PackedFloat32Array( 0, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6 ),
+"transitions": PackedFloat32Array( 1, 1, 1, 1, 1, 1, 1, 1 ),
+"update": 1,
+"values": [ 7, 9, 10, 11, 12, 13, 14, 15 ]
+}
+
+[sub_resource type="Animation" id=9]
+resource_name = "revive"
+length = 1.5
+tracks/0/type = "value"
+tracks/0/path = NodePath("../Sprite2D:frame")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/keys = {
+"times": PackedFloat32Array( 0, 0.6, 0.7, 0.8, 0.9, 1, 1.1, 1.2, 1.3, 1.4 ),
+"transitions": PackedFloat32Array( 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ),
+"update": 1,
+"values": [ 24, 25, 26, 27, 28, 29, 30, 31, 32, 33 ]
+}
+tracks/1/type = "method"
+tracks/1/path = NodePath("..")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/keys = {
+"times": PackedFloat32Array( 1.4 ),
+"transitions": PackedFloat32Array( 1 ),
+"values": [ {
+"args": [  ],
+"method": "respawn"
+} ]
+}
+
+[sub_resource type="Animation" id=7]
+resource_name = "splat"
+length = 0.25
+step = 0.05
+tracks/0/type = "value"
+tracks/0/path = NodePath("../Sprite2D:frame")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/keys = {
+"times": PackedFloat32Array( 0, 0.25 ),
+"transitions": PackedFloat32Array( 1, 1 ),
+"update": 1,
+"values": [ 8, 17 ]
+}
+
+[sub_resource type="Animation" id=4]
+resource_name = "walk"
+length = 0.3
+step = 0.05
+tracks/0/type = "value"
+tracks/0/path = NodePath("../Sprite2D:frame")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/keys = {
+"times": PackedFloat32Array( 0, 0.1, 0.2, 0.3 ),
+"transitions": PackedFloat32Array( 1, 1, 1, 1 ),
+"update": 1,
+"values": [ 1, 2, 3, 0 ]
+}
+
+[sub_resource type="RectangleShape2D" id=1]
+extents = Vector2( 6, 4.5 )
+
+[node name="player" type="CharacterBody2D"]
+z_index = 2
+collision_mask = 62
+script = SubResource( 12 )
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+texture = ExtResource( 1 )
+hframes = 9
+vframes = 5
+frame = 4
+
+[node name="Camera2D" type="Camera2D" parent="."]
+current = true
+zoom = Vector2( 0.25, 0.25 )
+position_smoothing_enabled = true
+
+[node name="AnimationPlayer" type="AnimationPlayer" parent="."]
+root_node = NodePath("../Camera2D")
+anims/RESET = SubResource( 2 )
+anims/blank = SubResource( 10 )
+anims/dash = SubResource( 11 )
+anims/death = SubResource( 8 )
+anims/fall = SubResource( 6 )
+anims/idle = SubResource( 3 )
+anims/jump = SubResource( 5 )
+anims/revive = SubResource( 9 )
+anims/splat = SubResource( 7 )
+anims/walk = SubResource( 4 )
+
+[node name="PointLight2D" type="PointLight2D" parent="."]
+position = Vector2( 6, -2 )
+texture_scale = 1.2
+color = Color( 1, 1, 1, 0 )
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+position = Vector2( 0, -1 )
+shape = SubResource( 1 )
+
+[node name="FloorChecker" type="RayCast2D" parent="."]
+enabled = true
+target_position = Vector2( 0, 8 )
+collision_mask = 2
+
+[node name="Node2D" type="Node2D" parent="."]
+position = Vector2( 0, -1 )
+
+[node name="Marker2D" type="Marker2D" parent="Node2D"]
+position = Vector2( 9, -1 )

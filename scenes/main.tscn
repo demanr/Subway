@@ -1,0 +1,15 @@
+[gd_scene load_steps=3 format=3 uid="uid://b8o6l0u6ekh7k"]
+
+[ext_resource type="PackedScene" uid="uid://bb2qbc1t7mq0a" path="res://player/player.tscn" id="1"]
+[ext_resource type="PackedScene" uid="uid://fvrgambabvf0" path="res://scenes/border.tscn" id="2_0wfyh"]
+
+[node name="Node2D" type="Node2D"]
+
+[node name="CharacterBody2D" parent="." instance=ExtResource("1")]
+position = Vector2(4, 13)
+
+[node name="Border" parent="." instance=ExtResource("2_0wfyh")]
+position = Vector2(-6, 275)
+
+[node name="Border2" parent="." instance=ExtResource("2_0wfyh")]
+position = Vector2(8, -287)
