@@ -14,6 +14,7 @@ scale = Vector2(1, 40)
 shape = SubResource("SegmentShape2D_s64y5")
 
 [node name="Sprite2D" type="Sprite2D" parent="."]
+visible = false
 position = Vector2(0, -5)
 scale = Vector2(40, 0.0664062)
 texture = ExtResource("1_wqdf4")

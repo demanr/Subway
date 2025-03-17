@@ -1,3 +1,5 @@
+PointLight2D
+CanvasModulate
 TileMapLayer
 TileMap
 Camera2D
