@@ -11,7 +11,7 @@ extends CharacterBody2D
 #	pass # Replace with function body.
 
 
-@export var speed = 400
+@export var speed = 50
 
 
 func get_input():

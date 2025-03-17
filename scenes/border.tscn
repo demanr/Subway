@@ -3,7 +3,7 @@
 [ext_resource type="Texture2D" uid="uid://bcaun0opibo0l" path="res://icon.png" id="1_wqdf4"]
 
 [sub_resource type="SegmentShape2D" id="SegmentShape2D_s64y5"]
-a = Vector2(-2.97237e-06, -68)
+a = Vector2(-10.0001, -39.475)
 b = Vector2(2.40413e-06, 55)
 
 [node name="StaticBody2D" type="StaticBody2D"]
@@ -13,8 +13,7 @@ rotation = 1.5708
 scale = Vector2(1, 40)
 shape = SubResource("SegmentShape2D_s64y5")
 
-[node name="Border" type="Area2D" parent="."]
-
 [node name="Sprite2D" type="Sprite2D" parent="."]
+position = Vector2(0, -5)
 scale = Vector2(40, 0.0664062)
 texture = ExtResource("1_wqdf4")
